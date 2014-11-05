@@ -1,0 +1,32 @@
+{
+  "name": "install-b2d",
+  "version": "0.1.0",
+  "description": "installation of b2d",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "benjamin.cauldwell@gmail.com",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^0.9.0",
+    "diskspace": "^0.1.7",
+    "download": "^3.1.2",
+    "download-progress": "0.0.1",
+    "download-status": "^2.1.0",
+    "lodash": "^2.4.1",
+    "plist": "^1.1.0",
+    "progress": "^1.1.8",
+    "shelljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "chai": "^1.9.2",
+    "grunt": "^0.4.5",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-shell": "^1.1.1",
+    "istanbul": "^0.3.2",
+    "matchdep": "^0.3.0",
+    "mocha": "^2.0.1",
+    "rewire": "^2.1.2",
+    "sinon": "^1.11.1"
+  }
+}
