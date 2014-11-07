@@ -201,10 +201,10 @@ var main = function () {
           var dest = '~/.boot2docker/';
           var cmd = 'cp ' + src + ' ' + dest;
           log.info(cmd);
-          newline();
           shell.exec(cmd, function (err, data) {
             if (err) throw err;
             log.ok('OK');
+            newline();
             next(null);
           });
         }
