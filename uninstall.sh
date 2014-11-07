@@ -10,5 +10,6 @@ rm /usr/local/share/boot2docker/boot2docker.iso
 rmdir /usr/local/share/boot2docker
 
 rm -rf ~/.boot2docker
+rm ~/.ssh/*boot2docker*
 
 ~/Downloads/VirtualBox_Uninstall.tool

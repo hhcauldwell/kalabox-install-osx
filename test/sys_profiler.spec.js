@@ -6,7 +6,7 @@ var assert = require('chai').assert,
   rewire = require('rewire'),
   sp = rewire('../lib/sys_profiler.js');
 
-var TIMEOUT = 30 * 1000;
+var TIMEOUT = 45 * 1000;
 
 describe('sys_profiler.js', function () {
 

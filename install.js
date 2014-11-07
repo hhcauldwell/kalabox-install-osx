@@ -1,6 +1,7 @@
 
 // dependencies
 var async = require('async'),
+  chalk = require('chalk'),
   disk = require('./lib/disk.js'),
   download = require('./lib/download.js'),
   firewall = require('./lib/firewall.js'),
@@ -8,17 +9,43 @@ var async = require('async'),
   internet = require('./lib/internet.js'),
   path = require('path'),
   shell = require('./lib/shell.js'),
-  sys_profiler = require('./lib/sys_profiler.js');
+  sys_profiler = require('./lib/sys_profiler.js'),
+  virtualBox = require('./lib/virtualBox.js');
 
 // constants
-var INSTALL_MB = 30 * 1000,
-  B2D_URL_V1_3_0 = 'https://github.com/boot2docker/osx-installer/releases/download/v1.3.0/Boot2Docker-1.3.0.pkg';
-
+var INSTALL_MB = 30 * 1000;
+var B2D_URL_V1_3_0 = 'https://github.com/boot2docker/osx-installer/releases/download/v1.3.0/Boot2Docker-1.3.0.pkg';
+var B2D_URL_PROFILE = 'https://raw.githubusercontent.com/kalabox/kalabox-boot2docker/master/profile';
 // variables
 var b2dIsInstalled,
-  firewallIsOkay;
+  firewallIsOkay,
+  stepCounter = 1;
 
 var main = function () {
+
+  var log = {
+    header: function (msg) {
+      console.log('STEP [' + stepCounter + '] -- ' + msg + '...');
+      stepCounter += 1;
+    },
+    alert: function (msg) {
+      console.log(chalk.yellow(' ##### ' + msg + ' #####'));
+    },
+    info: function (msg) {
+      console.log(chalk.gray(' --- ' + msg));
+    },
+    ok: function (msg) {
+      console.log(chalk.green(' - ' + msg));
+    },
+    warn: function(msg) {
+      console.log(chalk.red( ' - ' + msg));
+    },
+    fail: function (msg) {
+      console.log(chalk.red(' *** ' + msg + ' ***'));
+      process.exit(1);
+    },
+    newline: function () { console.log(''); }
+  };
 
   function sendMessage(msg) {
     console.log(msg);
@@ -27,7 +54,7 @@ var main = function () {
   function newline() { sendMessage(''); };
 
   function fail(msg) {
-    console.log('*** ' + msg + ' ***');
+    console.log(chalk.red('*** ' + msg + ' ***'));
     process.exit(1);
   };
 
@@ -35,24 +62,42 @@ var main = function () {
 
     // Check if boot2docker is already installed.
     function (next) {
-      sendMessage('Checking if Boot2Docker is installed...');
+      log.header('Checking if Boot2Docker is installed.');
       sys_profiler.isAppInstalled('Boot2Docker', function (err, isInstalled) {
         if (err) throw err;
         var msg = isInstalled ? 'is' : 'is NOT';
-        sendMessage(' - Boot2Docker: ' + msg + ' already installed.');
-        newline();
+        var fn_log = isInstalled ? log.warn : log.ok ;
+        fn_log('Boot2Docker ' + msg + ' installed.');
+        log.newline();
         b2dIsInstalled = isInstalled;
         next(null);
       });
     },
 
+    // Check if VirtualBox.app is running.
+    function (next) {
+      log.header('Checking if VirtualBox is running.');
+      virtualBox.isRunning(function (err, isRunning) {
+        if (err) throw err;
+        if (isRunning) {
+          log.warn('VirtualBox: is currently running.');
+          log.fail('Please stop VirtualBox and then run install again.');
+        } else {
+          log.ok('VirtualBox: is NOT currently running.');
+        }
+        log.newline();
+        next();
+      });
+    },
+
     // Check the firewall settings.
     function (next) {
-      sendMessage('Checking firewall settings...');
+      log.header('Checking firewall settings.');
       firewall.isOkay(function (isOkay) {
         var msg = isOkay ? 'OK' : 'NOT OK';
-        sendMessage(' - Firewall settings: ' + msg);
-        newline();
+        var fn_log = isOkay ? log.ok : log.fail;
+        fn_log('Firewall settings: ' + msg);
+        log.newline();
         firewallIsOkay = isOkay;
         next(null);
       });
@@ -60,12 +105,13 @@ var main = function () {
 
     // Check for access to the internets.
     function (next) {
-      sendMessage('Checking internet access...');
+      log.header('Checking internet access.');
       internet.check('www.google.com', function (err) {
         var msg = err === null ? 'OK' : 'NOT OK';
-        sendMessage(' - Internet access: ' + msg);
+        var fn_log = err === null ? log.ok : log.warn;
+        fn_log('Internet access: ' + msg);
         if (err !== null) {
-          fail('INTERNET IS NOT ACCESSABLE!');
+          log.fail('Internet is NOT accessable!');
         }
         newline();
         next(null);
@@ -74,13 +120,14 @@ var main = function () {
 
     // Check available disk space for install.
     function (next) {
-      sendMessage('Checking disk free space...');
+      log.header('Checking disk free space.');
       disk.getFreeSpace(function (err, freeMbs) {
         freeMbs = Math.round(freeMbs);
         var enoughFreeSpace = freeMbs > INSTALL_MB;
-        sendMessage(' - ' + freeMbs + ' MB free of the required ' + INSTALL_MB + ' MB.');
+        var fn_log = enoughFreeSpace ? log.ok : log.warn;
+        fn_log(freeMbs + ' MB free of the required ' + INSTALL_MB + ' MB');
         if (!enoughFreeSpace) {
-          fail('NOT ENOUGH DISK SPACE FOR INSTALL!');
+          log.fail('Not enough disk space for install!');
         }
         newline();
         next(null);
@@ -90,14 +137,17 @@ var main = function () {
     // Download dependencies to temp dir.
     function (next) {
       var urls = b2dIsInstalled ? [
-
+        B2D_URL_PROFILE
       ] : [
-        B2D_URL_V1_3_0
+        B2D_URL_V1_3_0,
+        B2D_URL_PROFILE
       ];
       if (urls.length > 0) {
         dest = disk.getTempDir();
-        sendMessage('Downloading dependencies...');
+        log.header('Downloading dependencies.');
+        urls.forEach(function (url) { log.info(url); });
         download.downloadFiles(urls, dest, function () {
+          log.newline();
           next(null);
         });
       } else {
@@ -107,41 +157,84 @@ var main = function () {
 
     // Install packages.
     function (next) {
+      log.header('Installing packages.');
+      log.alert('ADMINISTRATIVE PASSWORD WILL BE REQUIRED!');
       var tempDir = disk.getTempDir();
       var pkg = path.join(tempDir, path.basename(B2D_URL_V1_3_0));
       disk.getMacVolume(function (err, volume) {
         if (err) throw err;
-        sendMessage('Installing Packages...');
-        sendMessage(' - Installing: ' + pkg);
+        log.info('Installing: ' + pkg);
         var child = installer.installAsync(pkg, volume);
         child.stdout.on('data', function (data) {
-          console.log(' --- ' + data);          
+          log.info(data);
         });
         child.stdout.on('end', function () {
-          console.log(' - Finished installing: ' + pkg);
+          log.ok('Finished installing: ' + pkg);
+          log.newline();
           next();
         });
         child.stderr.on('data', function (data) {
-          console.log('ERR->' + data);
-          //throw new Error(data);          
+          log.warn(data);
         });
       });
     },
 
-    // Init and start boot2docker
+    // Setup profile.
     function (next) {
-      ['init', 'start'].forEach(function (action) {
-        var cmd = 'boot2docker ' + action;
-        sendMessage(' - Running: ' + cmd);
+    
+      log.header('Setting up Boot2Docker profile.');
+      async.series([
+
+        function (next) {
+          var cmd = 'mkdir -p ~/.boot2docker/';
+          log.info(cmd);
+          shell.exec(cmd, function (err, data) {
+            if (err) throw err;
+            log.ok('OK');
+            next(null);
+          });
+        },
+
+        function (next) {
+          var tmp = disk.getTempDir();
+          var src = path.join(tmp, path.basename(B2D_URL_PROFILE));
+          var dest = '~/.boot2docker/';
+          var cmd = 'cp ' + src + ' ' + dest;
+          log.info(cmd);
+          newline();
+          shell.exec(cmd, function (err, data) {
+            if (err) throw err;
+            log.ok('OK');
+            next(null);
+          });
+        }
+        
+      ], function (err, results) {
+        if (err) throw err;
+        next();
+      });
+
+    },
+
+    // Init and start boot2docker
+    function (_next) {
+      async.eachSeries(['init', 'up'], function (action, next) {
+        var cmd = 'boot2docker ' + action + ' -v';
+        log.header('Running: ' + cmd);
         var child = shell.execAsync(cmd);
         child.stdout.on('data', function (data) {
-          console.log(' --- ' + data);
+          log.info(data);
         });
         child.stdout.on('end', function () {
-          sendMessage(' - Finished running: ' + cmd);
+          log.ok('Finished running: ' + cmd);
           next();
         });
-      });
+        }, function (err) {
+          if (err) throw err;
+          _next();
+        }
+      );
+
     }
 
   ]);
