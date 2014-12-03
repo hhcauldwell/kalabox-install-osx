@@ -7,19 +7,6 @@ var assert = require('chai').assert,
   disk = rewire('../lib/disk.js');
 
 describe('disk.js', function () {
-  
-  describe('#getMacVolume()', function () {
-
-    it('should return the correct Mac volume.', function (done) {
-      var expected = 'hd';
-      disk.getMacVolume(function (err, volume) {
-        expect(err).to.equal(null);
-        expect(volume).to.equal(expected);
-        done();
-      });
-    });
-
-  });
 
   describe('#getTempDir()', function () {
 
