@@ -181,7 +181,7 @@ var main = function () {
 
     // Setup profile.
     function (next) {
-    
+
       log.header('Setting up Boot2Docker profile.');
       async.series([
 
@@ -208,7 +208,7 @@ var main = function () {
             next(null);
           });
         }
-        
+
       ], function (err, results) {
         if (err) throw err;
         next();
@@ -256,7 +256,7 @@ var main = function () {
       // @todo: use 'npm install download' module
       //downloader.downloadFiles()
   /*download.downloadFiles([
-      B2D_URL_V1_3_0   
+      B2D_URL_V1_3_0
     ],
     disk.getTempDir(),
     function (err) {
